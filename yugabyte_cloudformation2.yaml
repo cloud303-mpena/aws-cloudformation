@@ -319,7 +319,14 @@ Resources:
                     MasterPrivateIp: !GetAtt Node0NetInt.PrimaryPrivateIpAddress,
                     Zone: !Select [0, !GetAZs ''],
                     Region: !Ref AWS::Region,
-                    MasterAddresses: !Join [ ",", [ !GetAtt Node0NetInt.PrimaryPrivateIpAddress, !GetAtt Node1NetInt.PrimaryPrivateIpAddress, !GetAtt Node2NetInt.PrimaryPrivateIpAddress ] ]
+                    MasterAddresses: !Join [
+                      ",",
+                      [
+                        !Join ["", [!GetAtt Node0NetInt.PrimaryPrivateIpAddress, ":7100"]],
+                        !Join ["", [!GetAtt Node1NetInt.PrimaryPrivateIpAddress, ":7100"]],
+                        !Join ["", [!GetAtt Node2NetInt.PrimaryPrivateIpAddress, ":7100"]]
+                      ]
+                    ]
                   }
 
             03_Start_TServer:
@@ -330,8 +337,16 @@ Resources:
                     TServerPrivateIp: !GetAtt Node0NetInt.PrimaryPrivateIpAddress,
                     Zone: !Select [0, !GetAZs ''],
                     Region: !Ref AWS::Region,
-                    MasterAddresses: !Join [ ",", [ !GetAtt Node0NetInt.PrimaryPrivateIpAddress, !GetAtt Node1NetInt.PrimaryPrivateIpAddress, !GetAtt Node2NetInt.PrimaryPrivateIpAddress ] ]
+                    MasterAddresses: !Join [
+                      ",",
+                      [
+                        !Join ["", [!GetAtt Node0NetInt.PrimaryPrivateIpAddress, ":7100"]],
+                        !Join ["", [!GetAtt Node1NetInt.PrimaryPrivateIpAddress, ":7100"]],
+                        !Join ["", [!GetAtt Node2NetInt.PrimaryPrivateIpAddress, ":7100"]]
+                      ]
+                    ]
                   }
+
 
     Properties:
       ImageId: !Ref LatestAmiId
@@ -408,15 +423,14 @@ Resources:
           commands:
             00_Install_Yugabyte_DB:
               command: !Sub |
-                bash -c "cd /home/${SshUser} && \
+                  bash -c "cd /home/${SshUser} && \
                   wget https://software.yugabyte.com/releases/2024.2.2.2/yugabyte-2024.2.2.2-b2-linux-x86_64.tar.gz && \
-                  tar xvfz yugabyte-2024.2.2.2-b2-linux-x86_64.tar.gz && \
-                  ./yugabyte-2024.2.2.2/bin/post_install.sh"
+                  tar xvfz yugabyte-2024.2.2.2-b2-linux-x86_64.tar.gz && cd yugabyte-2024.2.2.2/ && \
+                  ./bin/post_install.sh"
 
             01_Install_Other_Software:
               command: !Sub
-                - sudo bash -c "/home/${SSH_USER}/install_software.sh&& \
-                  cd yugabyte-2024.2.2.2"
+                - sudo bash -c "/home/${SSH_USER}/install_software.sh"
                 - {SSH_USER: !Ref SshUser}
 
             02_Start_Master:
@@ -427,9 +441,16 @@ Resources:
                     MasterPrivateIp: !GetAtt Node1NetInt.PrimaryPrivateIpAddress,
                     Zone: !Select [1, !GetAZs ''],
                     Region: !Ref AWS::Region,
-                    MasterAddresses: !Join [ ",", [ !GetAtt Node0NetInt.PrimaryPrivateIpAddress, !GetAtt Node1NetInt.PrimaryPrivateIpAddress, !GetAtt Node2NetInt.PrimaryPrivateIpAddress ] ]
+                    MasterAddresses: !Join [
+                      ",",
+                      [
+                        !Join ["", [!GetAtt Node0NetInt.PrimaryPrivateIpAddress, ":7100"]],
+                        !Join ["", [!GetAtt Node1NetInt.PrimaryPrivateIpAddress, ":7100"]],
+                        !Join ["", [!GetAtt Node2NetInt.PrimaryPrivateIpAddress, ":7100"]]
+                      ]
+                    ]
                   }
-
+                  
             03_Start_TServer:
               command: !Sub
                 - bash -c "cd /home/${SSH_USER}/yugabyte-2024.2.2.2 && sudo -u ${SSH_USER} /home/${SSH_USER}/start_tserver.sh ${TServerPrivateIp} ${Zone} ${Region} /home/${SSH_USER} '${MasterAddresses}'"
@@ -438,8 +459,16 @@ Resources:
                     TServerPrivateIp: !GetAtt Node1NetInt.PrimaryPrivateIpAddress,
                     Zone: !Select [1, !GetAZs ''],
                     Region: !Ref AWS::Region,
-                    MasterAddresses: !Join [ ",", [ !GetAtt Node0NetInt.PrimaryPrivateIpAddress, !GetAtt Node1NetInt.PrimaryPrivateIpAddress, !GetAtt Node2NetInt.PrimaryPrivateIpAddress ] ]
+                    MasterAddresses: !Join [
+                      ",",
+                      [
+                        !Join ["", [!GetAtt Node0NetInt.PrimaryPrivateIpAddress, ":7100"]],
+                        !Join ["", [!GetAtt Node1NetInt.PrimaryPrivateIpAddress, ":7100"]],
+                        !Join ["", [!GetAtt Node2NetInt.PrimaryPrivateIpAddress, ":7100"]]
+                      ]
+                    ]
                   }
+
 
     Properties:
       ImageId: !Ref LatestAmiId
@@ -517,15 +546,13 @@ Resources:
           commands:
             00_Install_Yugabyte_DB:
               command: !Sub |
-                bash -c "cd /home/${SshUser} && \
+                  bash -c "cd /home/${SshUser} && \
                   wget https://software.yugabyte.com/releases/2024.2.2.2/yugabyte-2024.2.2.2-b2-linux-x86_64.tar.gz && \
-                  tar xvfz yugabyte-2024.2.2.2-b2-linux-x86_64.tar.gz && \
-                  ./yugabyte-2024.2.2.2/bin/post_install.sh"
-
+                  tar xvfz yugabyte-2024.2.2.2-b2-linux-x86_64.tar.gz && cd yugabyte-2024.2.2.2/ && \
+                  ./bin/post_install.sh"
             01_Install_Other_Software:
               command: !Sub
-                - sudo bash -c "/home/${SSH_USER}/install_software.sh && \
-                  cd yugabyte-2024.2.2.2"
+                - sudo bash -c "/home/${SSH_USER}/install_software.sh"
                 - {SSH_USER: !Ref SshUser}
 
             02_Start_Master:
@@ -536,9 +563,16 @@ Resources:
                     MasterPrivateIp: !GetAtt Node2NetInt.PrimaryPrivateIpAddress,
                     Zone: !Select [2, !GetAZs ''],
                     Region: !Ref AWS::Region,
-                    MasterAddresses: !Join [ ",", [ !GetAtt Node0NetInt.PrimaryPrivateIpAddress, !GetAtt Node1NetInt.PrimaryPrivateIpAddress, !GetAtt Node2NetInt.PrimaryPrivateIpAddress ] ]
+                    MasterAddresses: !Join [
+                      ",",
+                      [
+                        !Join ["", [!GetAtt Node0NetInt.PrimaryPrivateIpAddress, ":7100"]],
+                        !Join ["", [!GetAtt Node1NetInt.PrimaryPrivateIpAddress, ":7100"]],
+                        !Join ["", [!GetAtt Node2NetInt.PrimaryPrivateIpAddress, ":7100"]]
+                      ]
+                    ]
                   }
-
+                  
             03_Start_TServer:
               command: !Sub
                 - bash -c "cd /home/${SSH_USER}/yugabyte-2024.2.2.2 && sudo -u ${SSH_USER} /home/${SSH_USER}/start_tserver.sh ${TServerPrivateIp} ${Zone} ${Region} /home/${SSH_USER} '${MasterAddresses}'"
@@ -547,18 +581,33 @@ Resources:
                     TServerPrivateIp: !GetAtt Node2NetInt.PrimaryPrivateIpAddress,
                     Zone: !Select [2, !GetAZs ''],
                     Region: !Ref AWS::Region,
-                    MasterAddresses: !Join [ ",", [ !GetAtt Node0NetInt.PrimaryPrivateIpAddress, !GetAtt Node1NetInt.PrimaryPrivateIpAddress, !GetAtt Node2NetInt.PrimaryPrivateIpAddress ] ]
+                    MasterAddresses: !Join [
+                      ",",
+                      [
+                        !Join ["", [!GetAtt Node0NetInt.PrimaryPrivateIpAddress, ":7100"]],
+                        !Join ["", [!GetAtt Node1NetInt.PrimaryPrivateIpAddress, ":7100"]],
+                        !Join ["", [!GetAtt Node2NetInt.PrimaryPrivateIpAddress, ":7100"]]
+                      ]
+                    ]
                   }
+
             04_Configure_Replication:
               command: !Sub
-                - bash -c "sudo -u ${SSH_USER} /home/${SSH_USER}/set_replica_policy.sh ${Region} ${Zone0} ${Zone1} ${Zone2} 3 '${MasterAddresses}'"
+                - bash -c "cd /home/${SSH_USER}/yugabyte-2024.2.2.2 && sudo -u ${SSH_USER} /home/${SSH_USER}/set_replica_policy.sh ${Region} ${Zone0} ${Zone1} ${Zone2} 3 '${MasterAddresses}'"
                 - {
                     SSH_USER: !Ref SshUser,
                     Region: !Ref AWS::Region,
                     Zone0: !Select [0, !GetAZs ''],
                     Zone1: !Select [1, !GetAZs ''],
                     Zone2: !Select [2, !GetAZs ''],
-                    MasterAddresses: !Join [ ",", [ !GetAtt Node0NetInt.PrimaryPrivateIpAddress, !GetAtt Node1NetInt.PrimaryPrivateIpAddress, !GetAtt Node2NetInt.PrimaryPrivateIpAddress ] ]
+                    MasterAddresses: !Join [
+                      ",",
+                      [
+                        !Join ["", [!GetAtt Node0NetInt.PrimaryPrivateIpAddress, ":7100"]],
+                        !Join ["", [!GetAtt Node1NetInt.PrimaryPrivateIpAddress, ":7100"]],
+                        !Join ["", [!GetAtt Node2NetInt.PrimaryPrivateIpAddress, ":7100"]]
+                      ]
+                    ]
                   }
 
     Properties:
