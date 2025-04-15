@@ -271,7 +271,7 @@ Resources:
         configSets:
           InstallAndRun:
             - Install
-            # - Configure
+            - Configure
         Install:
           packages:
             apt:
@@ -298,53 +298,40 @@ Resources:
               mode: '0755'
               owner: !Ref SshUser
               group: !Ref SshUser
-            commands:
-              00_Install_Yugabyte_DB:
-                command: !Sub |
-                  bash -c "cd /home/${SSH_USER} && \
-                    wget https://software.yugabyte.com/releases/2024.2.2.2/yugabyte-2024.2.2.2-b2-linux-x86_64.tar.gz && \
-                    tar xvfz yugabyte-2024.2.2.2-b2-linux-x86_64.tar.gz && \
-                    ./yugabyte-2024.2.2.2/bin/post_install.sh"
+          commands:
+            00_Install_Yugabyte_DB:
+              command: !Sub |
+                  bash -c "cd /home/${SshUser} && \
+                  wget https://software.yugabyte.com/releases/2024.2.2.2/yugabyte-2024.2.2.2-b2-linux-x86_64.tar.gz && \
+                  tar xvfz yugabyte-2024.2.2.2-b2-linux-x86_64.tar.gz && cd yugabyte-2024.2.2.2/ && \
+                  ./bin/post_install.sh"
 
-              01_Install_Other_Software:
-                command: !Sub
-                  - sudo bash -c "/home/${SSH_USER}/install_software.sh"
-                  - {SSH_USER: !Ref SshUser }
+            01_Install_Other_Software:
+              command: !Sub
+                - sudo bash -c "/home/${SSH_USER}/install_software.sh"
+                - {SSH_USER: !Ref SshUser}
 
-              02_Start_Master:
-                command: !Sub
-                  - bash -c "sudo -u ${SSH_USER} /home/${SSH_USER}/start_master.sh ${MasterPrivateIp} ${Zone} ${Region} /home/${SSH_USER} '${MasterAddresses}'"
-                  - {
-                      SSH_USER: !Ref SshUser,
-                      MasterPrivateIp: !GetAtt Node0.PrivateIp,
-                      Zone: !GetAtt Subnet0.AvailabilityZone,
-                      Region: !Ref AWS::Region,
-                      MasterAddresses: !Join [ ",", [ !GetAtt Node0.PrivateIp, !GetAtt Node1.PrivateIp, !GetAtt Node2.PrivateIp ] ]
-                    }
+            02_Start_Master:
+              command: !Sub
+                - bash -c "cd /home/${SSH_USER}/yugabyte-2024.2.2.2 && sudo -u ${SSH_USER} /home/${SSH_USER}/start_master.sh ${MasterPrivateIp} ${Zone} ${Region} /home/${SSH_USER} '${MasterAddresses}'"
+                - {
+                    SSH_USER: !Ref SshUser,
+                    MasterPrivateIp: !GetAtt Node0NetInt.PrimaryPrivateIpAddress,
+                    Zone: !Select [0, !GetAZs ''],
+                    Region: !Ref AWS::Region,
+                    MasterAddresses: !Join [ ",", [ !GetAtt Node0NetInt.PrimaryPrivateIpAddress, !GetAtt Node1NetInt.PrimaryPrivateIpAddress, !GetAtt Node2NetInt.PrimaryPrivateIpAddress ] ]
+                  }
 
-              03_Start_TServer:
-                command: !Sub
-                  - bash -c "sudo -u ${SSH_USER} /home/${SSH_USER}/start_tserver.sh ${TServerPrivateIp} ${Zone} ${Region} /home/${SSH_USER} '${MasterAddresses}'"
-                  - {
-                      SSH_USER: !Ref SshUser,
-                      TServerPrivateIp: !GetAtt Node0.PrivateIp,
-                      Zone: !GetAtt Subnet0.AvailabilityZone,
-                      Region: !Ref AWS::Region,
-                      MasterAddresses: !Join [ ",", [ !GetAtt Node0.PrivateIp, !GetAtt Node1.PrivateIp, !GetAtt Node2.PrivateIp ] ]
-                    }
-
-              04_Configure_Replication:
-                command: !Sub
-                  - bash -c "sudo -u ${SSH_USER} /home/${SSH_USER}/modify_placement.sh ${Region} ${Zone0} ${Zone1} ${Zone2} ${RF} '${MasterAddresses}'"
-                  - {
-                      SSH_USER: !Ref SshUser,
-                      Region: !Ref AWS::Region,
-                      Zone0: !GetAtt Subnet0.AvailabilityZone,
-                      Zone1: !GetAtt Subnet1.AvailabilityZone,
-                      Zone2: !GetAtt Subnet2.AvailabilityZone,
-                      RF: !Ref RFFactor,
-                      MasterAddresses: !Join [ ",", [ !GetAtt Node0.PrivateIp, !GetAtt Node1.PrivateIp, !GetAtt Node2.PrivateIp ] ]
-                    }
+            03_Start_TServer:
+              command: !Sub
+                - bash -c "cd /home/${SSH_USER}/yugabyte-2024.2.2.2 && sudo -u ${SSH_USER} /home/${SSH_USER}/start_tserver.sh ${TServerPrivateIp} ${Zone} ${Region} /home/${SSH_USER} '${MasterAddresses}'"
+                - {
+                    SSH_USER: !Ref SshUser,
+                    TServerPrivateIp: !GetAtt Node0NetInt.PrimaryPrivateIpAddress,
+                    Zone: !Select [0, !GetAZs ''],
+                    Region: !Ref AWS::Region,
+                    MasterAddresses: !Join [ ",", [ !GetAtt Node0NetInt.PrimaryPrivateIpAddress, !GetAtt Node1NetInt.PrimaryPrivateIpAddress, !GetAtt Node2NetInt.PrimaryPrivateIpAddress ] ]
+                  }
 
     Properties:
       ImageId: !Ref LatestAmiId
@@ -391,42 +378,69 @@ Resources:
         configSets:
           InstallAndRun:
             - Install
-            # - Configure
+            - Configure
         Install:
           packages:
             apt:
               git: []
-        # Configure:
-        #   files:
-        #     /home/ubuntu/install_software.sh:
-        #       source: "https://raw.githubusercontent.com/cloud303-mpena/yugabyte-utilities/master/common_scripts/install_software.sh"
-        #       mode: '0755'
-        #       owner: !Ref SshUser
-        #       group: !Ref SshUser
-        #     /home/ubuntu/create_universe.sh:
-        #       source: "https://raw.githubusercontent.com/cloud303-mpena/yugabyte-utilities/master/common_scripts/create_universe.sh"
-        #       mode: '0755'
-        #       owner: !Ref SshUser
-        #       group: !Ref SshUser
-        #     /home/ubuntu/start_master.sh:
-        #       source: "https://raw.githubusercontent.com/cloud303-mpena/yugabyte-utilities/master/scripts/start_master.sh"
-        #       mode: '0755'
-        #       owner: !Ref SshUser
-        #       group: !Ref SshUser
-        #     /home/ubuntu/start_tserver.sh:
-        #       source: "https://raw.githubusercontent.com/cloud303-mpena/yugabyte-utilities/master/scripts/start_tserver.sh"
-        #       mode: '0755'
-        #       owner: !Ref SshUser
-        #       group: !Ref SshUser
-        #   commands:
-        #     01_Install_YugaByte_DB:
-        #       command: !Sub
-        #          - bash -c "sudo -u ${SSH_USER} /home/${SSH_USER}/install_software.sh ${version}"
-        #          - { version: !Ref DBVersion, SSH_USER: !Ref SshUser }
-        #     02_Create_universe:
-        #       command: !Sub
-        #         - bash -c "sudo -u ${SSH_USER} /home/${SSH_USER}/create_universe.sh AWS ${AWS::Region} ${RF} '${Node0NetInt.PrimaryPrivateIpAddress} ${Node1NetInt.PrimaryPrivateIpAddress} ${Node2NetInt.PrimaryPrivateIpAddress}' '${PublicSubnet0.AvailabilityZone} ${PublicSubnet1.AvailabilityZone} ${PublicSubnet2.AvailabilityZone}' ${PublicSubnet1.AvailabilityZone} ${SSH_USER}"
-        #         - { RF: !Ref RFFactor, SSH_USER: !Ref SshUser }
+        Configure:
+          files:
+            /home/ubuntu/install_software.sh:
+              source: "https://raw.githubusercontent.com/cloud303-mpena/yugabyte-utilities/refs/heads/master/new_scripts/install_software.sh"
+              mode: '0755'
+              owner: !Ref SshUser
+              group: !Ref SshUser
+            /home/ubuntu/start_master.sh:
+              source: "https://raw.githubusercontent.com/cloud303-mpena/yugabyte-utilities/refs/heads/master/new_scripts/start_master.sh"
+              mode: '0755'
+              owner: !Ref SshUser
+              group: !Ref SshUser
+            /home/ubuntu/start_tserver.sh:
+              source: "https://raw.githubusercontent.com/cloud303-mpena/yugabyte-utilities/refs/heads/master/new_scripts/start_tserver.sh"
+              mode: '0755'
+              owner: !Ref SshUser
+              group: !Ref SshUser
+            /home/ubuntu/set_replica_policy.sh:
+              source: "https://raw.githubusercontent.com/cloud303-mpena/yugabyte-utilities/refs/heads/master/new_scripts/set_replica_policy.sh"
+              mode: '0755'
+              owner: !Ref SshUser
+              group: !Ref SshUser
+          commands:
+            00_Install_Yugabyte_DB:
+              command: !Sub |
+                bash -c "cd /home/${SshUser} && \
+                  wget https://software.yugabyte.com/releases/2024.2.2.2/yugabyte-2024.2.2.2-b2-linux-x86_64.tar.gz && \
+                  tar xvfz yugabyte-2024.2.2.2-b2-linux-x86_64.tar.gz && \
+                  ./yugabyte-2024.2.2.2/bin/post_install.sh"
+
+            01_Install_Other_Software:
+              command: !Sub
+                - sudo bash -c "/home/${SSH_USER}/install_software.sh&& \
+                  cd yugabyte-2024.2.2.2"
+                - {SSH_USER: !Ref SshUser}
+
+            02_Start_Master:
+              command: !Sub
+                - bash -c "cd /home/${SSH_USER}/yugabyte-2024.2.2.2 && sudo -u ${SSH_USER} /home/${SSH_USER}/start_master.sh ${MasterPrivateIp} ${Zone} ${Region} /home/${SSH_USER} '${MasterAddresses}'"
+                - {
+                    SSH_USER: !Ref SshUser,
+                    MasterPrivateIp: !GetAtt Node1NetInt.PrimaryPrivateIpAddress,
+                    Zone: !Select [1, !GetAZs ''],
+                    Region: !Ref AWS::Region,
+                    MasterAddresses: !Join [ ",", [ !GetAtt Node0NetInt.PrimaryPrivateIpAddress, !GetAtt Node1NetInt.PrimaryPrivateIpAddress, !GetAtt Node2NetInt.PrimaryPrivateIpAddress ] ]
+                  }
+
+            03_Start_TServer:
+              command: !Sub
+                - bash -c "cd /home/${SSH_USER}/yugabyte-2024.2.2.2 && sudo -u ${SSH_USER} /home/${SSH_USER}/start_tserver.sh ${TServerPrivateIp} ${Zone} ${Region} /home/${SSH_USER} '${MasterAddresses}'"
+                - {
+                    SSH_USER: !Ref SshUser,
+                    TServerPrivateIp: !GetAtt Node1NetInt.PrimaryPrivateIpAddress,
+                    Zone: !Select [1, !GetAZs ''],
+                    Region: !Ref AWS::Region,
+                    MasterAddresses: !Join [ ",", [ !GetAtt Node0NetInt.PrimaryPrivateIpAddress, !GetAtt Node1NetInt.PrimaryPrivateIpAddress, !GetAtt Node2NetInt.PrimaryPrivateIpAddress ] ]
+                  }
+
     Properties:
       ImageId: !Ref LatestAmiId
       InstanceType: !Ref InstanceType
@@ -473,42 +487,80 @@ Resources:
         configSets:
           InstallAndRun:
             - Install
-            # - Configure
+            - Configure
         Install:
           packages:
             apt:
               git: []
-        # Configure:
-        #   files:
-        #     /home/ubuntu/install_software.sh:
-        #       source: "https://raw.githubusercontent.com/cloud303-mpena/yugabyte-utilities/master/common_scripts/install_software.sh"
-        #       mode: '0755'
-        #       owner: !Ref SshUser
-        #       group: !Ref SshUser
-        #     /home/ubuntu/create_universe.sh:
-        #       source: "https://raw.githubusercontent.com/cloud303-mpena/yugabyte-utilities/master/common_scripts/create_universe.sh"
-        #       mode: '0755'
-        #       owner: !Ref SshUser
-        #       group: !Ref SshUser
-        #     /home/ubuntu/start_master.sh:
-        #       source: "https://raw.githubusercontent.com/cloud303-mpena/yugabyte-utilities/master/scripts/start_master.sh"
-        #       mode: '0755'
-        #       owner: !Ref SshUser
-        #       group: !Ref SshUser
-        #     /home/ubuntu/start_tserver.sh:
-        #       source: "https://raw.githubusercontent.com/cloud303-mpena/yugabyte-utilities/master/scripts/start_tserver.sh"
-        #       mode: '0755'
-        #       owner: !Ref SshUser
-        #       group: !Ref SshUser
-        #   commands:
-        #     01_Install_YugaByte_DB:
-        #       command:  !Sub
-        #          - bash -c "sudo -u ${SSH_USER} /home/${SSH_USER}/install_software.sh ${version}"
-        #          - { version: !Ref DBVersion, SSH_USER: !Ref SshUser }
-        #     02_Create_universe:
-        #       command: !Sub 
-        #         - bash -c "sudo -u ${SSH_USER} /home/${SSH_USER}/create_universe.sh AWS ${AWS::Region} ${RF} '${Node0NetInt.PrimaryPrivateIpAddress} ${Node1NetInt.PrimaryPrivateIpAddress} ${Node2NetInt.PrimaryPrivateIpAddress}' '${PublicSubnet0.AvailabilityZone} ${PublicSubnet1.AvailabilityZone} ${PublicSubnet2.AvailabilityZone}' ${PublicSubnet2.AvailabilityZone} ${SSH_USER}"
-        #         - { RF: !Ref RFFactor, SSH_USER: !Ref SshUser }
+        Configure:
+          files:
+            /home/ubuntu/install_software.sh:
+              source: "https://raw.githubusercontent.com/cloud303-mpena/yugabyte-utilities/refs/heads/master/new_scripts/install_software.sh"
+              mode: '0755'
+              owner: !Ref SshUser
+              group: !Ref SshUser
+            /home/ubuntu/start_master.sh:
+              source: "https://raw.githubusercontent.com/cloud303-mpena/yugabyte-utilities/refs/heads/master/new_scripts/start_master.sh"
+              mode: '0755'
+              owner: !Ref SshUser
+              group: !Ref SshUser
+            /home/ubuntu/start_tserver.sh:
+              source: "https://raw.githubusercontent.com/cloud303-mpena/yugabyte-utilities/refs/heads/master/new_scripts/start_tserver.sh"
+              mode: '0755'
+              owner: !Ref SshUser
+              group: !Ref SshUser
+            /home/ubuntu/set_replica_policy.sh:
+              source: "https://raw.githubusercontent.com/cloud303-mpena/yugabyte-utilities/refs/heads/master/new_scripts/set_replica_policy.sh"
+              mode: '0755'
+              owner: !Ref SshUser
+              group: !Ref SshUser
+          commands:
+            00_Install_Yugabyte_DB:
+              command: !Sub |
+                bash -c "cd /home/${SshUser} && \
+                  wget https://software.yugabyte.com/releases/2024.2.2.2/yugabyte-2024.2.2.2-b2-linux-x86_64.tar.gz && \
+                  tar xvfz yugabyte-2024.2.2.2-b2-linux-x86_64.tar.gz && \
+                  ./yugabyte-2024.2.2.2/bin/post_install.sh"
+
+            01_Install_Other_Software:
+              command: !Sub
+                - sudo bash -c "/home/${SSH_USER}/install_software.sh && \
+                  cd yugabyte-2024.2.2.2"
+                - {SSH_USER: !Ref SshUser}
+
+            02_Start_Master:
+              command: !Sub
+                - bash -c "cd /home/${SSH_USER}/yugabyte-2024.2.2.2 && sudo -u ${SSH_USER} /home/${SSH_USER}/start_master.sh ${MasterPrivateIp} ${Zone} ${Region} /home/${SSH_USER} '${MasterAddresses}'"
+                - {
+                    SSH_USER: !Ref SshUser,
+                    MasterPrivateIp: !GetAtt Node2NetInt.PrimaryPrivateIpAddress,
+                    Zone: !Select [2, !GetAZs ''],
+                    Region: !Ref AWS::Region,
+                    MasterAddresses: !Join [ ",", [ !GetAtt Node0NetInt.PrimaryPrivateIpAddress, !GetAtt Node1NetInt.PrimaryPrivateIpAddress, !GetAtt Node2NetInt.PrimaryPrivateIpAddress ] ]
+                  }
+
+            03_Start_TServer:
+              command: !Sub
+                - bash -c "cd /home/${SSH_USER}/yugabyte-2024.2.2.2 && sudo -u ${SSH_USER} /home/${SSH_USER}/start_tserver.sh ${TServerPrivateIp} ${Zone} ${Region} /home/${SSH_USER} '${MasterAddresses}'"
+                - {
+                    SSH_USER: !Ref SshUser,
+                    TServerPrivateIp: !GetAtt Node2NetInt.PrimaryPrivateIpAddress,
+                    Zone: !Select [2, !GetAZs ''],
+                    Region: !Ref AWS::Region,
+                    MasterAddresses: !Join [ ",", [ !GetAtt Node0NetInt.PrimaryPrivateIpAddress, !GetAtt Node1NetInt.PrimaryPrivateIpAddress, !GetAtt Node2NetInt.PrimaryPrivateIpAddress ] ]
+                  }
+            04_Configure_Replication:
+              command: !Sub
+                - bash -c "sudo -u ${SSH_USER} /home/${SSH_USER}/set_replica_policy.sh ${Region} ${Zone0} ${Zone1} ${Zone2} 3 '${MasterAddresses}'"
+                - {
+                    SSH_USER: !Ref SshUser,
+                    Region: !Ref AWS::Region,
+                    Zone0: !Select [0, !GetAZs ''],
+                    Zone1: !Select [1, !GetAZs ''],
+                    Zone2: !Select [2, !GetAZs ''],
+                    MasterAddresses: !Join [ ",", [ !GetAtt Node0NetInt.PrimaryPrivateIpAddress, !GetAtt Node1NetInt.PrimaryPrivateIpAddress, !GetAtt Node2NetInt.PrimaryPrivateIpAddress ] ]
+                  }
+
     Properties:
       ImageId: !Ref LatestAmiId
       InstanceType: !Ref InstanceType
